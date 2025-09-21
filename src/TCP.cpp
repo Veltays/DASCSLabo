@@ -154,6 +154,8 @@ int Accept(int sEcoute, char *ipClient)
     int sService = AcceptClient(sEcoute);
 
     GetClientIP(sService, ipClient);
+
+    return sService;
 }
 
 int AcceptClient(int sEcoute)
@@ -262,8 +264,6 @@ void ConnectToServer(int sClient, struct addrinfo *results)
 int ClientSocket(char *ipServeur, int portServeur)
 {
 
-    struct addrinfo hints;
-    struct addrinfo *results;
     char port[10];
 
     // convertir port en chaîne
@@ -319,40 +319,39 @@ int Receive(int sSocket, char *data)
     int tailleReseau;
     int taille;
 
-    // 1. lire l’entête (4 octets)
-    nbLus = read(sSocket, &tailleReseau, sizeof(int));
-    if (nbLus == 0)
-    {
-        // connexion fermée proprement
-        return 0;
-    }
-    if (nbLus != sizeof(int))
-    {
-        perror("Erreur de lecture de l’entête");
-        return -1;
+    // Lire l’entête (4 octets) en boucle
+    int lus = 0;
+    while (lus < sizeof(int)) {
+        nbLus = read(sSocket, ((char*)&tailleReseau) + lus, sizeof(int) - lus);
+        if (nbLus <= 0) {
+            perror("Erreur de lecture de l’entête");
+            return -1;
+        }
+        lus += nbLus;
     }
 
-    taille = ntohl(tailleReseau); // conversion réseau → machine
-    if (taille > TAILLE_MAX_DATA)
-    {
+    taille = ntohl(tailleReseau);
+
+    if (taille > TAILLE_MAX_DATA) {
         fprintf(stderr, "Erreur : taille reçue (%d) > TAILLE_MAX_DATA\n", taille);
         return -1;
     }
 
-    // 2. lire exactement "taille" octets
+    // Lire exactement "taille" octets
     int totalLus = 0;
-    while (totalLus < taille)
-    {
+    while (totalLus < taille) {
         nbLus = read(sSocket, data + totalLus, taille - totalLus);
-        if (nbLus <= 0)
-        {
+        if (nbLus <= 0) {
             perror("Erreur de lecture des données");
             return -1;
         }
         totalLus += nbLus;
     }
 
-    printf("Receive() → taille=%d, lus=%d, data=--%.*s--\n", taille, totalLus, taille, data);
+    // Terminer la chaîne reçue (si c'est du texte)
+    data[totalLus] = '\0';
+
+    printf("Receive() → taille=%d, lus=%d, data=--%s--\n", taille, totalLus, data);
     return totalLus;
 }
 

@@ -11,6 +11,8 @@ typedef struct
     int age;
     float poids;
 } PERSONNE;
+
+
 int main(int argc, char *argv[])
 {
     if (argc != 3)
